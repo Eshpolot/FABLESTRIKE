@@ -326,7 +326,7 @@ func _draw_hud() -> void:
 			_text(Vector2(cx - 170, cy + 130), ptxt, 15, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER, 340, false)
 			root.draw_rect(Rect2(cx - 166, cy + 138, 332, 8), Color(1, 1, 1, 0.12))
 			root.draw_rect(Rect2(cx - 166, cy + 138, 332 * clampf(prog, 0, 1), 8), UI.team_col(p.team))
-		elif st == game.S.PLANTED and p.team == "ct" and p.global_position.distance_to(game.bomb["pos"]) < 1.7:
+		elif st == game.S.PLANTED and p.team == "ct" and p.global_position.distance_to(game.bomb.pos) < 1.7:
 			_text(Vector2(cx - 200, cy + 136), "Удерживайте E — разминировать", 18, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER, 400)
 		elif st == game.S.LIVE and p.inv[5] == "c4" and game.world.site_at(p.global_position) != "":
 			_text(Vector2(cx - 240, cy + 136), "Возьмите бомбу (5) и удерживайте ЛКМ — заложить", 18, UI.TEXT, HORIZONTAL_ALIGNMENT_CENTER, 480)
@@ -359,9 +359,9 @@ func _radar(pos: Vector2, s: float, watch: Actor) -> void:
 		root.draw_texture_rect(radar, Rect2(pos, Vector2(s, h)), false, Color(1, 1, 1, 0.9))
 	var k := s / ws.x
 	var me: Player = game.player
-	var b: Dictionary = game.bomb
-	if b["state"] in ["planted", "dropped"] and (me.team == "t" or b["state"] == "planted"):
-		var bp: Vector3 = b["pos"]
+	var b: BombState = game.bomb
+	if b and b.state in [BombState.State.PLANTED, BombState.State.DROPPED] and (me.team == "t" or b.state == BombState.State.PLANTED):
+		var bp: Vector3 = b.pos
 		root.draw_circle(pos + Vector2(bp.x, ws.y + bp.z) * k, 5.0, UI.RED)
 	for a in game.actors:
 		var o := a as Actor

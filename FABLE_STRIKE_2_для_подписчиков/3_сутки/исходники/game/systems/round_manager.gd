@@ -55,8 +55,8 @@ func start_round() -> void:
 	var ts := game.team_of("t")
 	var carrier: Actor = ts[game.rng.randi() % ts.size()]
 	carrier.inv[5] = "c4"
-	game.bomb = game.bomb_system.bomb
-	game.bomb_system.bomb["carrier"] = carrier
+	game.bomb_system.bomb.carrier = carrier
+	game.bomb_system.bomb.state = BombState.State.CARRIED
 	# роли защиты
 	var roles := ["a", "b", "a", "b", "mid"]
 	roles.shuffle()
@@ -145,8 +145,9 @@ func end_round(winner: String, reason: String) -> void:
 	for a in game.team_of(winner):
 		if best == null or a.round_kills > best.round_kills:
 			best = a
-	if game.bomb["planter"] and winner == "t" and reason == "Бомба взорвана":
-		best = game.bomb["planter"]
+	var planter = game.bomb.planter if game.bomb is BombState else game.bomb["planter"]
+	if planter and winner == "t" and reason == "Бомба взорвана":
+		best = planter
 	if best:
 		best.mvps += 1
 	game.hud.round_end(winner, reason, best)

@@ -1,12 +1,12 @@
 class_name NadeSystem
 extends Node
 ## Гранаты, дым, огонь — вся площадная логика.
-## Вынесено из match.gd: nades/smokes/fires + _areas_tick + nade_burst.
+## P1.1: smokes: Array[Smoke], fires: Array[Fire] — вместо Dictionary.
 
 var game # Match
-var smokes: Array = []
-var fires: Array = []
-var nades: Array = []
+var smokes: Array[Smoke] = []
+var fires: Array[Fire] = []
+var nades: Array = []  # Nade ноды
 
 func setup(g) -> void:
 	game = g
@@ -17,12 +17,12 @@ func clear_round() -> void:
 			n.queue_free()
 	nades.clear()
 	for s in smokes:
-		if is_instance_valid(s["node"]):
-			s["node"].queue_free()
+		if is_instance_valid(s.node):
+			s.node.queue_free()
 	smokes.clear()
 	for f in fires:
-		if is_instance_valid(f["node"]):
-			f["node"].queue_free()
+		if is_instance_valid(f.node):
+			f.node.queue_free()
 	fires.clear()
 
 func throw_nade(owner: Actor, id: String, pos: Vector3, vel: Vector3) -> void:
@@ -63,12 +63,12 @@ func nade_burst(n: Nade) -> void:
 				game.hud.flash(t)
 	elif id == "smoke":
 		var node := game.fx.smoke_cloud(p, 4.6, 18.0)
-		smokes.append({"pos": p, "r": 4.3, "t": 18.0, "node": node})
+		smokes.append(Smoke.new(p, 4.3, 18.0, node))
 		game.combat.play3d("smoke_hiss", p, 0.0, 1.0, 7.0, 60.0)
 	elif id == "molotov":
 		var gp := Vector3(p.x, maxf(0.05, p.y - 0.1), p.z)
 		var node2 := game.fx.fire_area(gp, 3.2, 7.0)
-		fires.append({"pos": gp, "r": 3.2, "t": 7.0, "node": node2, "owner": n.thrower, "tick": 0.0})
+		fires.append(Fire.new(gp, 3.2, 7.0, node2, n.thrower))
 		game.combat.play3d("molotov", p, 2.0, 1.0, 8.0, 70.0)
 	elif id == "decoy":
 		game.fx.flash(p, 3.0, 5.0, 0.2)
@@ -76,16 +76,16 @@ func nade_burst(n: Nade) -> void:
 
 func tick(dt: float) -> void:
 	for s in smokes.duplicate():
-		s["t"] -= dt
-		if s["t"] <= 0.0:
+		s.t -= dt
+		if s.t <= 0.0:
 			smokes.erase(s)
 	for f in fires.duplicate():
-		f["t"] -= dt
-		f["tick"] -= dt
-		if f["tick"] <= 0.0:
-			f["tick"] = 0.25
+		f.t -= dt
+		f.tick -= dt
+		if f.tick <= 0.0:
+			f.tick = 0.25
 			for a in game.actors:
-				if a.alive and Vector2(a.global_position.x - f["pos"].x, a.global_position.z - f["pos"].z).length() < f["r"] and absf(a.global_position.y - f["pos"].y) < 1.5:
-					a.take_damage(9.0, f["owner"], "fire", "legs", f["pos"])
-		if f["t"] <= 0.0:
+				if a.alive and Vector2(a.global_position.x - f.pos.x, a.global_position.z - f.pos.z).length() < f.r and absf(a.global_position.y - f.pos.y) < 1.5:
+					a.take_damage(9.0, f.owner, "fire", "legs", f.pos)
+		if f.t <= 0.0:
 			fires.erase(f)

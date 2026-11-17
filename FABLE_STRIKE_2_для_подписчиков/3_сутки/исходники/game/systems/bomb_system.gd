@@ -1,24 +1,28 @@
 class_name BombSystem
 extends Node
 ## Бомба: выдача, подбор, закладка, разминирование, взрыв.
-## Вынесено из match.gd — теперь всё в одном месте, а не размазано по файлу.
+## P1.1: bomb: BombState (типизирован) вместо Dictionary.
 
 var game # Match
-var bomb := {"state": "none", "pos": Vector3.ZERO, "carrier": null, "site": "", "t": 0.0, "node": null, "planter": null, "beep": 0.0}
+var bomb: BombState
 var dropped_c4: Node3D
 var t_plan := "a"
 
 func setup(g, rng: RandomNumberGenerator) -> void:
 	game = g
+	bomb = BombState.new()
 	t_plan = "a" if rng.randf() < 0.5 else "b"
 	reset()
 
 func reset() -> void:
-	if bomb["node"] and is_instance_valid(bomb["node"]):
-		bomb["node"].queue_free()
+	if bomb and bomb.node and is_instance_valid(bomb.node):
+		bomb.node.queue_free()
 	if dropped_c4 and is_instance_valid(dropped_c4):
 		dropped_c4.queue_free()
-	bomb = {"state": "carried", "pos": Vector3.ZERO, "carrier": null, "site": "", "t": 0.0, "node": null, "planter": null, "beep": 0.0}
+	bomb = BombState.new()
+	bomb.state = BombState.State.CARRIED
+	# сохраняем совместимость: game.bomb как Dictionary остаётся через геттер в match.gd,
+	# но внутри уже типизировано.
 
 func assign_carrier(candidates: Array) -> void:
 	if candidates.is_empty():
@@ -27,15 +31,15 @@ func assign_carrier(candidates: Array) -> void:
 	rng.randomize()
 	var carrier: Actor = candidates[randi() % candidates.size()]
 	carrier.inv[5] = "c4"
-	bomb["carrier"] = carrier
-	bomb["state"] = "carried"
+	bomb.carrier = carrier
+	bomb.state = BombState.State.CARRIED
 
 func drop_bomb(pos: Vector3) -> void:
-	bomb["state"] = "dropped"
-	bomb["carrier"] = null
-	bomb["pos"] = Vector3(pos.x, 0.02, pos.z)
+	bomb.state = BombState.State.DROPPED
+	bomb.carrier = null
+	bomb.pos = Vector3(pos.x, 0.02, pos.z)
 	dropped_c4 = _c4_node()
-	dropped_c4.global_position = bomb["pos"]
+	dropped_c4.global_position = bomb.pos
 	dropped_c4.rotation = Vector3(-PI / 2.0, randf() * TAU, 0)
 	game.hud.announce("Бомба брошена", 2.0)
 
@@ -64,24 +68,24 @@ func try_plant(a: Actor, holding: bool) -> void:
 		a.switch_to(a.inv[1] if a.inv[1] != "" else a.inv[2])
 		a.money = mini(DB.MAX_MONEY, a.money + DB.PLANT_BONUS)
 		a.score += 2
-		bomb["state"] = "planted"
-		bomb["site"] = game.world.site_at(a.global_position)
-		bomb["pos"] = Vector3(a.global_position.x, a.global_position.y + 0.02, a.global_position.z) - Basis(Vector3.UP, a.view_yaw).z * 0.5
-		bomb["t"] = DB.T_BOMB
-		bomb["planter"] = a
-		bomb["carrier"] = null
+		bomb.state = BombState.State.PLANTED
+		bomb.site = game.world.site_at(a.global_position)
+		bomb.pos = Vector3(a.global_position.x, a.global_position.y + 0.02, a.global_position.z) - Basis(Vector3.UP, a.view_yaw).z * 0.5
+		bomb.t = DB.T_BOMB
+		bomb.planter = a
+		bomb.carrier = null
 		var n := _c4_node()
-		n.global_position = bomb["pos"]
+		n.global_position = bomb.pos
 		n.rotation = Vector3(-PI / 2.0, a.view_yaw, 0)
-		bomb["node"] = n
+		bomb.node = n
 		game.state = game.S.PLANTED
 		game.hud.announce("Бомба заложена", 3.0)
 		Sfx.play("bomb_planted", -3.0)
 		Sfx.music("action_theme", 0.6, -13.0)
-		G.log_line("bomb planted at %s by %s" % [bomb["site"], a.nick])
+		G.log_line("bomb planted at %s by %s" % [bomb.site, a.nick])
 
 func try_defuse(a: Actor, holding: bool) -> void:
-	if not holding or game.state != game.S.PLANTED or a.team != "ct" or not a.alive or a.global_position.distance_to(bomb["pos"]) > 1.7:
+	if not holding or game.state != game.S.PLANTED or a.team != "ct" or not a.alive or a.global_position.distance_to(bomb.pos) > 1.7:
 		if a.defuse_t >= 0.0:
 			a.defuse_t = -1.0
 		return
@@ -93,51 +97,50 @@ func try_defuse(a: Actor, holding: bool) -> void:
 	if a.defuse_t >= need:
 		a.defuse_t = -1.0
 		a.score += 2
-		bomb["state"] = "defused"
-		if bomb["node"]:
-			(bomb["node"].get_node("Blink") as OmniLight3D).light_energy = 0.0
+		bomb.state = BombState.State.DEFUSED
+		if bomb.node:
+			(bomb.node.get_node("Blink") as OmniLight3D).light_energy = 0.0
 		Sfx.play("bomb_defused", -3.0)
 		game._end_round("ct", "Бомба обезврежена")
 
 func tick(dt: float) -> void:
-	var st: String = bomb["state"]
-	if st == "dropped":
+	if bomb.state == BombState.State.DROPPED:
 		for a in game.alive_of("t"):
-			if a.global_position.distance_to(bomb["pos"]) < 1.1:
+			if a.global_position.distance_to(bomb.pos) < 1.1:
 				a.inv[5] = "c4"
-				bomb["state"] = "carried"
-				bomb["carrier"] = a
+				bomb.state = BombState.State.CARRIED
+				bomb.carrier = a
 				if dropped_c4 and is_instance_valid(dropped_c4):
 					dropped_c4.queue_free()
 				if a == game.player:
 					game.hud.announce("Вы подобрали бомбу", 2.0)
 				break
-	elif st == "planted" and game.state == game.S.PLANTED:
-		bomb["t"] -= dt
-		bomb["beep"] -= dt
-		if bomb["beep"] <= 0.0:
-			var tl: float = bomb["t"]
-			bomb["beep"] = clampf(0.1 + 0.9 * tl / DB.T_BOMB, 0.12, 1.0)
-			Sfx.at("bomb_beep", bomb["pos"], 2.0, 1.0, 7.0, 80.0)
-			var l := bomb["node"].get_node("Blink") as OmniLight3D
+	elif bomb.state == BombState.State.PLANTED and game.state == game.S.PLANTED:
+		bomb.t -= dt
+		bomb.beep -= dt
+		if bomb.beep <= 0.0:
+			var tl: float = bomb.t
+			bomb.beep = clampf(0.1 + 0.9 * tl / DB.T_BOMB, 0.12, 1.0)
+			Sfx.at("bomb_beep", bomb.pos, 2.0, 1.0, 7.0, 80.0)
+			var l := bomb.node.get_node("Blink") as OmniLight3D
 			l.light_energy = 3.0
 			game.create_tween().tween_property(l, "light_energy", 0.0, 0.12)
-		if bomb["t"] <= 0.0:
+		if bomb.t <= 0.0:
 			_explode()
 
 func _explode() -> void:
-	bomb["state"] = "exploded"
-	var p: Vector3 = bomb["pos"]
+	bomb.state = BombState.State.EXPLODED
+	var p: Vector3 = bomb.pos
 	game.fx.explosion(p, 11.0)
 	Sfx.at("explosion_big", p, 8.0, 1.0, 30.0, 300.0)
 	Sfx.play("explosion_big", -6.0, 1.0)
-	if bomb["node"]:
-		bomb["node"].visible = false
+	if bomb.node:
+		bomb.node.visible = false
 	for a in game.actors:
 		if a.alive:
 			var d: float = a.global_position.distance_to(p)
 			if d < 17.0:
-				a.take_damage(500.0 * pow(1.0 - d / 17.0, 1.4), bomb["planter"], "c4", "chest", p)
+				a.take_damage(500.0 * pow(1.0 - d / 17.0, 1.4), bomb.planter, "c4", "chest", p)
 	if game.player:
 		game.player.shake(1.0)
 	game._end_round("t", "Бомба взорвана")
@@ -157,3 +160,7 @@ func _c4_node() -> Node3D:
 	n.add_child(l)
 	game.add_child(n)
 	return n
+
+## Совместимость: старый код читает bomb["state"], bomb["pos"] — даём прокси.
+func _get_bomb_dict() -> Dictionary:
+	return {"state": BombState.state_to_str(bomb.state), "pos": bomb.pos, "carrier": bomb.carrier, "site": bomb.site, "t": bomb.t, "node": bomb.node, "planter": bomb.planter, "beep": bomb.beep}

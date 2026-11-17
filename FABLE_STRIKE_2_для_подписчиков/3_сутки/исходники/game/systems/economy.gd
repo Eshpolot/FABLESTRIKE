@@ -19,7 +19,13 @@ func on_round_end(winner: String, reason: String) -> void:
 		a.money = mini(DB.MAX_MONEY, a.money + win_money)
 	var lb: int = DB.LOSS[mini(loss_streak[loser], DB.LOSS.size() - 1)]
 	# бонус за закладку проигравшим (даже если потом обезвредили)
-	if loser == "t" and game.bomb["state"] in ["planted", "defused"]:
+	var bstate = game.bomb.state if game.bomb is BombState else game.bomb["state"]
+	var is_planted_bonus := false
+	if bstate is int:
+		is_planted_bonus = bstate in [BombState.State.PLANTED, BombState.State.DEFUSED]
+	else:
+		is_planted_bonus = str(bstate) in ["planted", "defused"]
+	if loser == "t" and is_planted_bonus:
 		lb += DB.PLANT_LOSS_BONUS
 	for a in game.team_of(loser):
 		if loser == "t" and a.alive and reason == "Время вышло":

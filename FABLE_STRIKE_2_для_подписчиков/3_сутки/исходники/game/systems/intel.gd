@@ -43,14 +43,15 @@ func hot_site(team: String) -> String:
 	return "a" if na >= nb else "b"
 
 func smoke_blocks(a: Vector3, b: Vector3) -> bool:
-	# нужен доступ к game.smokes — делегируем через game.nade_system если есть
 	var smokes: Array = game.smokes if "smokes" in game else (game.nade_system.smokes if game.nade_system else [])
 	for s in smokes:
-		var c: Vector3 = s["pos"] + Vector3(0, 1.4, 0)
-		var r: float = s["r"]
+		# P1.1: поддержка типизированных Smoke
+		var pos: Vector3 = s.pos if s is Smoke else s["pos"]
+		var rad: float = s.r if s is Smoke else s["r"]
+		var c: Vector3 = pos + Vector3(0, 1.4, 0)
 		var ab := b - a
 		var t := clampf((c - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
-		if (a + ab * t).distance_to(c) < r:
+		if (a + ab * t).distance_to(c) < rad:
 			return true
 	return false
 

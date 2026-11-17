@@ -23,10 +23,27 @@ var round_manager: RoundManager
 var test_harness: TestHarness
 
 # --- алиасы для совместимости (brain.gd читает game.bomb/game.smokes напрямую) ---
-var bomb: Dictionary:
-	get: return bomb_system.bomb if bomb_system else {"state": "none", "pos": Vector3.ZERO, "carrier": null, "site": "", "t": 0.0, "node": null, "planter": null, "beep": 0.0}
-	set(v): 
-		if bomb_system: bomb_system.bomb = v
+# P1.1: bomb теперь BombState, smokes: Array[Smoke], fires: Array[Fire]
+# facade — без строгих типов чтобы избежать порядка загрузки; внутри — типизировано
+var bomb:
+	get: return bomb_system.bomb if bomb_system else null
+	set(v):
+		if bomb_system:
+			if v is BombState:
+				bomb_system.bomb = v
+			elif v is Dictionary:
+				# legacy: словарь -> BombState
+				bomb_system.bomb.state = BombState.str_to_state(str(v.get("state","none")))
+				bomb_system.bomb.pos = v.get("pos", Vector3.ZERO)
+				bomb_system.bomb.carrier = v.get("carrier", null)
+				bomb_system.bomb.site = v.get("site","")
+				bomb_system.bomb.t = v.get("t",0.0)
+				bomb_system.bomb.node = v.get("node", null)
+				bomb_system.bomb.planter = v.get("planter", null)
+				bomb_system.bomb.beep = v.get("beep",0.0)
+# Для старого кода, который делает game.bomb["pos"], даём прокси-словарь через _bomb_dict
+var _bomb_dict: Dictionary:
+	get: return bomb_system._get_bomb_dict() if bomb_system else {"state":"none","pos":Vector3.ZERO}
 var smokes: Array:
 	get: return nade_system.smokes if nade_system else []
 	set(v):
@@ -228,7 +245,7 @@ func round_over_no_damage() -> bool:
 	return state == S.HALF or state == S.OVER
 
 func time_left() -> float:
-	return bomb["t"] if state == S.PLANTED else t_left
+	return bomb.t if bomb and state == S.PLANTED else t_left
 
 func can_buy(a: Actor) -> bool:
 	if state == S.FREEZE:
