@@ -120,6 +120,10 @@ var dropped_c4: Node3D:
 	get: return bomb_system.dropped_c4 if bomb_system else null
 
 func _ready() -> void:
+	if G.args.has("perf"):
+		var perf := Perf.new()
+		perf.name = "Perf"
+		add_child(perf)
 	rng.randomize()
 	if G.args.has("seed"):
 		rng.seed = int(G.args["seed"])

@@ -44,6 +44,9 @@ func _process(dt: float) -> void:
 	ann_t -= dt
 	hit_t -= dt
 	hurt_a = maxf(0.0, hurt_a - dt * 1.6)
+	# P2: если HUD не нужен (spectate без цели) — не перерисовываем каждый кадр
+	if not game.player.alive and game.player.spect == null and hurt_a < 0.01 and hit_t < 0.01:
+		return
 	if flash_hold > 0.0:
 		flash_hold -= dt
 	else:

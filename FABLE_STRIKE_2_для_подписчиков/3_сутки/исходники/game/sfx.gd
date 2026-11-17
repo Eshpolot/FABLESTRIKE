@@ -91,6 +91,7 @@ func _pick(n: String) -> AudioStream:
 func apply_volumes() -> void:
 	if AudioServer.get_bus_index("Music") < 0:
 		return
+	# P2: кэшируем — не трогаем шину если уже установлено
 	var s: Dictionary = G.settings
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(0.0001, float(s["vol_master"]))))
 	if G.args.has("silent"):

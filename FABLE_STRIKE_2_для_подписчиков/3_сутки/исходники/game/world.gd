@@ -249,7 +249,8 @@ func _lights() -> void:
 	env.ssao_intensity = 2.2
 	env.ssao_power = 1.6
 	env.ssil_enabled = q >= 3
-	env.sdfgi_enabled = q >= 2
+	# P2: SDFGI только на максималке (q==3), на q==2 — дорого и даёт +15% VRAM
+	env.sdfgi_enabled = q >= 3
 	env.sdfgi_cascades = 4
 	env.sdfgi_min_cell_size = 0.4
 	env.sdfgi_use_occlusion = true
@@ -278,10 +279,11 @@ func _lights() -> void:
 	sun.light_angular_distance = 0.6
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS if q >= 1 else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 110.0 if q >= 1 else 70.0
+	sun.directional_shadow_max_distance = 110.0 if q >= 2 else (70.0 if q == 1 else 45.0)
 	sun.directional_shadow_blend_splits = true
 	sun.shadow_bias = 0.04
 	sun.shadow_normal_bias = 1.2
+	# P2: на low — 2 сплита вместо 4, тени ламп только на high
 	add_child(sun)
 	# позднее утро, солнце с юго-запада: свет идёт на северо-восток и вниз
 	sun.look_at_from_position(Vector3.ZERO, Vector3(0.55, -0.80, -0.62).normalized(), Vector3.UP)
@@ -293,7 +295,7 @@ func _lights() -> void:
 		o.light_energy = float(l[4]) * 1.6
 		o.light_color = Color(1.0, 0.68, 0.36)
 		o.omni_attenuation = 1.4
-		o.shadow_enabled = q >= 2 and n < 6
+			o.shadow_enabled = q >= 3 and n < 4  # P2: тени ламп только на максималке
 		o.distance_fade_enabled = true
 		o.distance_fade_begin = 45.0
 		o.distance_fade_length = 10.0

@@ -12,6 +12,8 @@ var _blood: Array[CPUParticles3D] = []
 var _bi := 0
 var _flashes: Array[OmniLight3D] = []
 var _fi := 0
+var _explosion_pool: Array[Node3D] = []
+var _ei := 0
 var hole_tex: ImageTexture
 var soft_tex: ImageTexture
 var flash_tex: ImageTexture
@@ -64,6 +66,20 @@ func _ready() -> void:
 		l.visible = false
 		add_child(l)
 		_flashes.append(l)
+	# P2: пул взрывов — 6 готовых групп по 3 системы частиц (вместо new+queue_free каждый раз)
+	for ei in 6:
+		var root := Node3D.new()
+		root.visible = false
+		add_child(root)
+		for cfg in [[Color(1.0, 0.72, 0.3, 0.95), 26, 0.45, 13.2, 0.6, 1.6, -1.0], [Color(0.16, 0.14, 0.12, 0.85), 30, 1.6, 6.6, 1.0, 2.6, 0.6],
+				[Color(0.62, 0.54, 0.4, 0.6), 30, 2.4, 5.4, 0.8, 2.2, -2.5]]:
+			var p := _particles(cfg[0], cfg[1], cfg[2], cfg[3], cfg[4], cfg[5])
+			p.spread = 180.0
+			p.gravity = Vector3(0, cfg[6], 0)
+			root.add_child(p)
+			p.emitting = false
+			p.one_shot = true
+		_explosion_pool.append(root)
 
 func _particles(col: Color, n: int, life: float, vel: float, s0: float, s1: float) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
@@ -193,15 +209,21 @@ func flash(pos: Vector3, energy := 3.0, rng := 7.0, dur := 0.06, col := Color(1.
 
 func explosion(pos: Vector3, radius := 6.0) -> void:
 	flash(pos + Vector3(0, 0.6, 0), 28.0, radius * 3.0, 0.45, Color(1.0, 0.6, 0.25))
-	for cfg in [[Color(1.0, 0.72, 0.3, 0.95), 26, 0.45, radius * 2.2, 0.6, 1.6, -1.0], [Color(0.16, 0.14, 0.12, 0.85), 30, 1.6, radius * 1.1, 1.0, 2.6, 0.6],
-			[Color(0.62, 0.54, 0.4, 0.6), 30, 2.4, radius * 0.9, 0.8, 2.2, -2.5]]:
-		var p := _particles(cfg[0], cfg[1], cfg[2], cfg[3], cfg[4], cfg[5])
-		p.spread = 180.0
-		p.gravity = Vector3(0, cfg[6], 0)
-		p.global_position = pos + Vector3(0, 0.4, 0)
+	# P2: берём готовую группу из пула, без аллокаций и GC
+	var root := _explosion_pool[_ei]
+	_ei = (_ei + 1) % _explosion_pool.size()
+	root.global_position = pos + Vector3(0, 0.4, 0)
+	root.visible = true
+	for c in root.get_children():
+		var p := c as CPUParticles3D
+		# масштаб под радиус (базовый 6.0 -> текущий radius)
+		var k := radius / 6.0
+		p.amount = int(p.amount) # keep
+		# скорость и размер уже в cfg, масштабируем скоростью
+		p.initial_velocity_max = 13.2 * k if p.gravity.y < 0 else (6.6 * k if p.gravity.y < 1 else 5.4 * k)
 		p.restart()
 		p.emitting = true
-		get_tree().create_timer(cfg[2] + 0.5).timeout.connect(p.queue_free)
+	get_tree().create_timer(2.6).timeout.connect(func(): root.visible = false)
 
 func smoke_cloud(pos: Vector3, radius: float, dur: float) -> Node3D:
 	var root := Node3D.new()

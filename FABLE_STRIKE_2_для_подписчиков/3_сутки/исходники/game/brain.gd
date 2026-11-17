@@ -76,6 +76,7 @@ func _sense() -> void:
 	var fwd := -Basis(Vector3.UP, a.view_yaw).z
 	var best: Actor = null
 	var bd := 1e9
+	# P2: LOS кэш — проверяем только ближайших, дальних отсекаем по дистанции и FOV до raycast
 	for e in game.actors:
 		var o := e as Actor
 		if not o.alive or o.team == a.team:
@@ -83,6 +84,9 @@ func _sense() -> void:
 		var to := o.eye() - eye
 		var d := to.length()
 		if d > 75.0:
+			continue
+		# P2: если цель дальше 35м и не в узком FOV — сразу скип без raycast
+		if d > 35.0 and fwd.dot(Vector3(to.x, 0, to.z).normalized()) < 0.55:
 			continue
 		var dn := to / maxf(d, 0.001)
 		var in_fov := fwd.dot(Vector3(dn.x, 0, dn.z).normalized()) > 0.38 or d < 4.0
@@ -121,6 +125,10 @@ func _new_err() -> void:
 
 func hear(pos: Vector3) -> void:
 	if target == null and a.alive and a.global_position.distance_to(pos) < 32.0:
+		# P2: шум сквозь стены теперь слабее — проверяем LOS только если далеко
+		if a.global_position.distance_to(pos) > 12.0 and not world.los(a.eye(), pos + Vector3(0,0.5,0), a.hit_rids):
+			if randf() < 0.5:
+				return
 		alert = pos
 		alert_t = 3.5
 
@@ -139,9 +147,11 @@ func _prune_reports(team: String) -> void:
 func think(dt: float) -> void:
 	if not a.alive:
 		return
+	# P2: адаптивная частота сенса — дальше от врага реже чекаем
 	sense_t -= dt
 	if sense_t <= 0.0:
-		sense_t = 0.12
+		# если уже есть цель и она жива — чекаем чаще (0.08), иначе реже (0.18)
+		sense_t = 0.08 if target and target.alive and target.global_position.distance_to(a.global_position) < 20.0 else 0.16
 		_sense()
 	lost_t += dt
 	hold_adv -= dt
