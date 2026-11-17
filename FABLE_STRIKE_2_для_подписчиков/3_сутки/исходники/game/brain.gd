@@ -124,6 +124,17 @@ func hear(pos: Vector3) -> void:
 		alert = pos
 		alert_t = 3.5
 
+func _prune_reports(team: String) -> void:
+	# FIX: чистим устаревшие репорты, чтобы hot_site не тонул в мусоре
+	var now := Time.get_ticks_msec()
+	var arr: Array = game.reports[team]
+	var i := 0
+	while i < arr.size():
+		if now - int(arr[i][0]) > 9000:
+			arr.remove_at(i)
+		else:
+			i += 1
+
 # ------------------------------------------------------------------ главный шаг
 func think(dt: float) -> void:
 	if not a.alive:

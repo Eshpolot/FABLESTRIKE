@@ -83,6 +83,14 @@ const RAR_NAME := ["Армейское", "Запрещённое", "Засекр
 const RAR_COL := [Color(0.30, 0.42, 1.0), Color(0.53, 0.28, 1.0), Color(0.83, 0.17, 0.90), Color(0.92, 0.29, 0.29), Color(1.0, 0.84, 0.0)]
 const RAR_ODDS := [0.60, 0.24, 0.11, 0.04, 0.01]
 const SKIN_WEAPONS := ["ak", "m4", "awp", "deagle", "glock", "usp", "mac10", "mp9", "shotgun", "knife"]
+
+# Валидация экономики — ловит опечатки в RAR_ODDS до запуска
+static func _validate() -> void:
+	var s := 0.0
+	for v in RAR_ODDS: s += v
+	assert(absf(s - 1.0) < 0.001, "DB.RAR_ODDS must sum to 1.0, got %f" % s)
+	assert(W.has("ak") and W.has("m4"), "DB.W missing base rifles")
+
 const CASES := {
 	"kasbah": {"name": "Кейс «Касба»", "price": 500, "skins": ["dune", "oasis", "ember", "bronze", "pixel", "night", "crimson", "gold"]},
 }

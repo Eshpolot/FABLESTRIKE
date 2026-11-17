@@ -1,0 +1,37 @@
+# Godot
+.godot/
+export/
+*.pck
+*.zip
+*.exe
+*.tmp
+user://
+user_config/
+.mono/
+.vscode/
+.idea/
+
+# Blender
+blender/__pycache__/
+*.blend1
+*.blend2
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Шоты и профили
+shots/
+user://*
+profile.json
+settings.json
+
+# Временные
+_sync/
+_shots/
+_output/
+dist/

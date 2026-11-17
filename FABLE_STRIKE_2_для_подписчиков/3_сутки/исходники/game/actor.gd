@@ -413,8 +413,16 @@ func move_step(wish: Vector2, want_jump: bool, want_crouch: bool, want_walk: boo
 			step_ph -= 200.0 * PI
 
 func _headroom() -> bool:
-	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3(0, H_CROUCH - 0.1, 0), global_position + Vector3(0, H_STAND + 0.05, 0), 1)
-	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+	# FIX: капсула вместо луча — не даёт встать в дверном проёме с низким потолком
+	var q := PhysicsShapeQueryParameters3D.new()
+	var shp := CapsuleShape3D.new()
+	shp.radius = RADIUS
+	shp.height = H_STAND
+	q.shape = shp
+	q.transform = Transform3D(Basis.IDENTITY, global_position + Vector3(0, H_STAND / 2.0, 0))
+	q.collision_mask = 1
+	q.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
 
 func speed_h() -> float:
 	return Vector2(velocity.x, velocity.z).length()

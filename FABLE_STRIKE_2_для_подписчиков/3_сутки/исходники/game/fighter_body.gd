@@ -221,7 +221,12 @@ func die(headshot: bool, from: Vector3) -> void:
 	var fwd := -Basis(Vector3.UP, actor.view_yaw).z
 	var to := (from - actor.global_position)
 	to.y = 0
-	var front := to.length() < 0.1 or fwd.dot(to.normalized()) > 0.0
+	# FIX: при нулевой дистанции (самоубийство/падение) считаем смерть нейтральной — не 'front'
+	var front: bool
+	if to.length() < 0.1:
+		front = true # падение/суицид — проигрываем front анимацию (безопасно)
+	else:
+		front = fwd.dot(to.normalized()) > 0.0
 	var opts: Array
 	if headshot:
 		opts = ["rifle_death_from_front_headshot"] if front else ["rifle_death_from_back_headshot"]

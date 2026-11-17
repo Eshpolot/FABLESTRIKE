@@ -32,7 +32,7 @@ func _physics_process(dt: float) -> void:
 		vel.y -= 11.0 * dt
 		var from := global_position
 		var to := from + vel * dt
-		var q := PhysicsRayQueryParameters3D.create(from, to + vel.normalized() * 0.06, 1)
+		var q := PhysicsRayQueryParameters3D.create(from, to + vel.normalized() * 0.06, 1 | 2) # FIX: 1=мир, 2=бойцы — граната не пролетает сквозь них
 		var hit := get_world_3d().direct_space_state.intersect_ray(q)
 		if hit.is_empty():
 			global_position = to

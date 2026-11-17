@@ -53,8 +53,12 @@ func _prep_weapons() -> void:
 			for i in mi.mesh.get_surface_count():
 				var m := mi.mesh.surface_get_material(i) as StandardMaterial3D
 				if m and m.ao_enabled:
-					m.ao_enabled = false
-					m.albedo_color = Color(lift, lift, lift)
+					# FIX: дублируем материал, иначе правим shared ресурс и
+					# перекрашиваем все инстансы (TP-модели, дропы, превью)
+					var dup := m.duplicate() as StandardMaterial3D
+					dup.ao_enabled = false
+					dup.albedo_color = Color(lift, lift, lift)
+					mi.mesh.surface_set_material(i, dup)
 		inst.free()
 
 func _parse_args() -> void:

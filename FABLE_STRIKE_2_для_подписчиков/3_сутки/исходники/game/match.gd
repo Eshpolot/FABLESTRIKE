@@ -651,8 +651,16 @@ func _finish() -> void:
 func report(team: String, pos: Vector3) -> void:
 	var arr: Array = reports[team]
 	arr.append([Time.get_ticks_msec(), pos])
-	if arr.size() > 24:
+	if arr.size() > 32:
 		arr.pop_front()
+	# FIX: чистим старые, чтобы hot_site не считал 2-минутный мусор
+	var now := Time.get_ticks_msec()
+	var i := 0
+	while i < arr.size():
+		if now - int(arr[i][0]) > 9000:
+			arr.remove_at(i)
+		else:
+			i += 1
 
 func hot_site(team: String) -> String:
 	var now := Time.get_ticks_msec()
